@@ -1725,6 +1725,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: office_building_4
       objectReference: {fileID: 0}
+    - target: {fileID: 5455955310744942643, guid: 4424c1ff10383e448be8e709503944c8, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5816273585327839718, guid: 4424c1ff10383e448be8e709503944c8, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
