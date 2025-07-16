@@ -1,39 +1,72 @@
+using System.Collections.Generic;
 using UnityEngine;
-using System.Collections;
 using UnityEngine.AI;
 
 public class EnemyAI : MonoBehaviour
 {
     [SerializeField] private float detectionRange = 10f;
-    [SerializeField] private float attackRange = 2f;
-    [SerializeField] private float attackCooldown = 2f;
-    [SerializeField] private float attackDuration = 1f;
-    [SerializeField] private float damage = 10f;
+    [SerializeField] private List<Transform> patrolPoints; 
+    [SerializeField] private float patrolPointThreshold = 1f;
 
     private NavMeshAgent agent;
-    private Animator animator;
+    private MeleeAttackController meleeAttackController;
     private Transform player;
-    private MoveController moveController;
-    private float attackRangeCoefficient = 2f;
-    private bool canAttack = true;
+
+    private int currentPatrolIndex = 0;
+    private bool isPlayerDetected = false;
 
     private void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        animator = GetComponent<Animator>();
-        moveController = GetComponent<MoveController>();
+        meleeAttackController = GetComponent<MeleeAttackController>();
         player = GameObject.FindGameObjectWithTag("Player").transform;
+
+        if (patrolPoints == null || patrolPoints.Count == 0) Debug.LogWarning("Ќужно добавить точки дл€ патрулировани€.");
+        else agent.SetDestination(patrolPoints[currentPatrolIndex].position);
     }
 
     private void Update()
     {
-        if (!canAttack) return;
+        if (player == null) return;
 
         float distanceToPlayer = Vector3.Distance(transform.position, player.position);
 
-        if (distanceToPlayer <= attackRange) StartCoroutine(AttackRoutine());
-        else if (distanceToPlayer <= detectionRange) MoveTowardsPlayer();
-        else Idle();
+        if (distanceToPlayer <= detectionRange) isPlayerDetected = true;
+        else isPlayerDetected = false;
+
+        if (isPlayerDetected) HandleChaseAndAttack(distanceToPlayer);
+        else Patrol();
+    }
+
+
+    private void HandleChaseAndAttack(float distanceToPlayer)
+    {
+        if (!meleeAttackController.CanAttack) return;
+
+        if (meleeAttackController.IsInRange())
+        {
+            Idle();
+            StartCoroutine(meleeAttackController.AttackRoutine(Idle));
+        }
+        else if (distanceToPlayer <= detectionRange)
+        {
+            MoveTowardsPlayer();
+        }
+        else
+        {
+            Idle();
+        }
+    }
+
+    private void Patrol()
+    {
+        if (patrolPoints == null || patrolPoints.Count == 0) return;
+
+        if (!agent.pathPending && agent.remainingDistance <= patrolPointThreshold)
+        {
+            currentPatrolIndex = (currentPatrolIndex + 1) % patrolPoints.Count;
+            agent.SetDestination(patrolPoints[currentPatrolIndex].position);
+        }
     }
 
     private void MoveTowardsPlayer()
@@ -44,27 +77,5 @@ public class EnemyAI : MonoBehaviour
     private void Idle()
     {
         agent.SetDestination(transform.position);
-    }
-
-    private IEnumerator AttackRoutine()
-    {
-        canAttack = false;
-
-        Idle();
-        animator.SetTrigger("Attack");
-
-        Vector3 direction = (player.position - transform.position).normalized;
-        transform.rotation = Quaternion.LookRotation(new Vector3(direction.x, 0, direction.z));
-
-        yield return new WaitForSeconds(attackDuration);
-        yield return new WaitForSeconds(attackCooldown);
-
-        canAttack = true;
-    }
-
-    public void DealDamage()
-    {
-        Debug.Log("Enemy dealt damage to player");
-        if (Vector3.Distance(transform.position, player.position) <= attackRange * attackRangeCoefficient) player.GetComponent<HealthController>().TakeDamage(damage);
     }
 }
